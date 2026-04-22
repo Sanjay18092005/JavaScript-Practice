@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form List</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-4">
+   <div class="flex justify-end mb-4">
+    <a href="form.html"
+       class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+        Create Form
+    </a>
+</div>
+
+    <table border="1" id="tab" class="w-full bg-white text-center border border-gray-400"></table>
+
+    <script>
+        let arr = JSON.parse(localStorage.getItem("formList")) || [];
+        let sortList = [...arr];
+        let deleteId = null;
+
+        render();
+
+        function render() {
+            const tab = document.getElementById("tab");
+
+            tab.innerHTML = `<tr>
+            <th class="p-2 border">id</th>
+            <th class="p-2 border">name</th>
+             <th class="p-2 border">edit</th>
+             <th class="p-2 border">Created Date
+             <button onclick="sortByCD('asc')" >⬆️</button>
+               <button onclick="sortByCD('desc')"  >⬇️</button>
+             </th>
+              <th class="p-2 border">Updated Date
+             <button onclick="sortByUD('asc')">⬆️</button>
+                <button onclick="sortByUD('desc')" >⬇️</button>
+               </th>
+               </tr>
+                `;
+
+
+            sortList.forEach((element) => {
+
+                if (element.isDeleted) return;
+
+               tab.innerHTML+=`<tr>
+               <td class="p-2 border">${element.Id}</td>
+               <td class="p-2 border">${element.Name}</td>
+               <td class="p-2 border">
+               <button onclick="viewForm(${element.Id})" title="View">👁️</button>
+                <button onclick="editForm(${element.Id})" title="Edit">✏️</button>
+                <button onclick="openDeleteModal(${element.Id})" title="Delete">🗑️</button>
+                 <button onclick="showSubmission(${element.Id})" title="Submission">☁️</button>
+                </td>
+                   <td class="p-2 border">${new Date(element.createdDate)}</td>
+               <td class="p-2 border">${new Date(element.updatedDate)}</td>
+                </tr>`;
+            });
+        }
+
+        function editForm(id) {
+            window.location.href = "form.html?editId=" + id;
+        }
+
+        function viewForm(id) {
+            window.location.href = "view.html?viewId=" + id;
+        }
+
+        function deleteForm(id) {
+            let formList = JSON.parse(localStorage.getItem("formList")) || [];
+
+            let index = formList.findIndex(item => item.Id == id);
+            if (index !== -1) {
+                formList[index].isDeleted = true;
+                formList[index].updatedDate = new Date().toISOString();
+            }
+
+            localStorage.setItem("formList", JSON.stringify(formList));
+
+            arr = [...formList];
+            sortList = [...arr];
+            render();
+        }
+
+        function sortByCD(order) {
+            arr = JSON.parse(localStorage.getItem("formList")) || [];
+            sortList = [...arr];
+
+            if (order === "asc") {
+                sortList.sort((a, b) => new Date(a.createdDate) - new Date(b.createdDate));
+            } else {
+                sortList.sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate));
+            }
+
+            render();
+        }
+
+        function sortByUD(order) {
+            arr = JSON.parse(localStorage.getItem("formList")) || [];
+            sortList = [...arr];
+
+            if (order === "asc") {
+                sortList.sort((a, b) => new Date(a.updatedDate) - new Date(b.updatedDate));
+            } else {
+                sortList.sort((a, b) => new Date(b.updatedDate) - new Date(a.updatedDate));
+            }
+
+            render();
+        }
+
+       
+        function openDeleteModal(id) {
+            deleteId = id;
+            document.getElementById("deleteModal").showModal();
+        }
+
+        function closeModal() {
+            document.getElementById("deleteModal").close();
+        }
+
+        function confirmDelete() {
+            deleteForm(deleteId);
+            closeModal();
+        }
+
+        function showSubmission(id){
+         window.location.href="submissionlist.html?viewId="+id;
+         }
+    </script>
+
+    
+
+    <dialog id="deleteModal" class="p-6 rounded-lg shadow-lg">
+        <p class="mb-4 text-lg font-semibold">Are you sure you want to delete?</p>
+
+        <div class="flex gap-4 justify-end">
+            <button onclick="confirmDelete()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded">
+                Yes
+            </button>
+
+            <button onclick="closeModal()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">
+                No
+            </button>
+        </div>
+    </dialog>
+</body>
+
+</html>

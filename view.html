@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Form</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-6">
+
+    <div class="max-w-xl mx-auto bg-white p-6 rounded shadow">
+        <h2 id="formTitle" class="text-xl font-bold mb-4"></h2>
+
+        <div id="formContainer"></div>
+
+        <button onclick="handleSubmit()" class="mt-4 bg-green-500 text-white px-3 py-1 rounded">Submit</button>
+
+        <a href="formlist.html" class="mt-4 inline-block bg-blue-500 text-white px-3 py-1 rounded">
+            Back
+        </a>
+    </div>
+
+    <script>
+
+        let responses=[];
+
+        let params=new URLSearchParams(window.location.search);
+        let viewId=params.get("viewId");
+
+        let formList=JSON.parse(localStorage.getItem("formList")) || [];
+
+        let form=null;
+        for (let i=0;i<formList.length;i++){
+            if(formList[i].Id==viewId){
+                form=formList[i];
+                break;
+            }
+        }
+
+        const container=document.getElementById("formContainer");
+        const title=document.getElementById("formTitle");
+
+        if (form!==null) {
+            title.innerText=form.Name;
+
+            for (let i=0;i<form.Components.length;i++){
+                let elem=form.Components[i];
+
+                if (elem.properties.isHide) 
+                continue;
+
+                const div=document.createElement("div");
+                div.className="mb-4";
+                div.innerHTML=getInputHTML(elem);
+                container.appendChild(div);
+            }
+        }
+
+        function getInputHTML(elem){
+            const label=elem.properties.label;
+            const placeholder=elem.properties.placeholder||label;
+
+            const style=elem.properties.styles||{};
+
+            const wrapperStyle = `
+             background-color:${style.bgColor || "#ffffff"};
+              padding:10px;
+             font-family:${style.fontFamily || "Arial"};
+              font-weight:${style.fontWeight || "normal"};
+             font-style:${style.fontStyle || "normal"};
+             border-radius:6px;
+             margin-bottom:10px;
+             `;
+
+            const labelStyle=`color:${style.labelColor || "#000000"};`;
+
+            switch(elem.type){
+
+                case "text":
+                    return `
+                      <div style="${wrapperStyle}">
+                        <label style="${labelStyle}">${label}</label><br>
+                        <input type="text" name="${label}" placeholder="${placeholder}" class="border p-1 w-full">
+                       </div>
+                       `;
+
+                case "email":
+                    return `
+                       <div style="${wrapperStyle}">
+                       <label style="${labelStyle}">${label}</label><br>
+                       <input type="email" name="${label}" placeholder="${placeholder}" class="border p-1 w-full">
+                       </div>
+                        `;
+
+                case "password":
+                    return `
+                           <div style="${wrapperStyle}">
+                           <label style="${labelStyle}">${label}</label><br>
+                           <input type="password" name="${label}" placeholder="${placeholder}" class="border p-1 w-full">
+                           </div>
+                            `;
+
+                case "checkbox":
+                    let checkboxHTML = `<div style="${wrapperStyle}"><label style="${labelStyle}">${label}</label><br>`;
+                    for (let i = 0; i < elem.properties.options.length; i++) {
+                        checkboxHTML += `
+                           <label style="${labelStyle}">
+                             <input type="checkbox" name="${label}"> ${elem.properties.options[i]}
+                           </label><br>
+                           `;
+                    }
+                    checkboxHTML += `</div>`;
+                    return checkboxHTML;
+
+                case "radio":
+                    let radioHTML = `<div style="${wrapperStyle}"><label style="${labelStyle}">${label}</label><br>`;
+                    for (let i = 0; i < elem.properties.options.length; i++) {
+                        radioHTML += `
+                     <label style="${labelStyle}">
+                   <input type="radio" name="${label}"> ${elem.properties.options[i]}
+                      </label><br>
+                       `;
+                    }
+                    radioHTML += `</div>`;
+                    return radioHTML;
+
+                case "select":
+                    let optionsHTML = "";
+                    for (let i = 0; i < elem.properties.options.length; i++) {
+                        optionsHTML += `<option>${elem.properties.options[i]}</option>`;
+                    }
+                    return `
+                <div style="${wrapperStyle}">
+                <label style="${labelStyle}">${label}</label><br>
+                <select name="${label}" class="border p-1 w-full">
+                <option>${placeholder}</option>
+                 ${optionsHTML}
+                 </select>
+                 </div>
+                 `;
+
+                default:
+                    return "";
+            }
+        }
+
+
+
+        let submissions=JSON.parse(localStorage.getItem("submissions")) || [];
+
+        function handleSubmit(){
+            let formData=[];
+            let inputs=document.querySelectorAll("#formContainer input,#formContainer select");
+
+            for(let i=0;i<inputs.length;i++){
+                let el=inputs[i];
+
+                let value="";
+
+                if(el.type==="radio"){
+                    if (el.checked){
+                        value=el.parentElement.innerText.trim();
+                    }else{
+                        continue;
+                    }
+                }
+                else if(el.type==="checkbox"){
+                    if(el.checked){
+                        value=el.parentElement.innerText.trim();
+                    }else{
+                        continue;
+                    }
+                }
+                else{
+                    value=el.value;
+                }
+
+                formData.push({
+                    componentId: el.name,
+                    value: value
+                });
+            }
+
+            let newSubmission={
+                id: Date.now().toString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                isDeleted: false,
+                submisionValues: formData
+            };
+
+            let formExists=false;
+
+            for(let i=0;i<submissions.length;i++){
+                if(submissions[i].formId==viewId){
+                    let current = submissions[i];
+                    current.submission.push(newSubmission);
+                    formExists=true;
+                    break;
+                }
+            }
+
+            if(!formExists){
+                submissions.push({
+                    formId: viewId,
+                    submission: [newSubmission]
+                });
+            }
+             localStorage.setItem("submissions",JSON.stringify(submissions));
+            console.log("All Submissions:",submissions);
+            window.location.href ="formlist.html";
+        }
+
+    </script>
+
+   
+
+</body>
+
+</html>

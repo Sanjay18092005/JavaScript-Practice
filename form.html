@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Builder</title>
+    <style>
+        .dragItem {
+            padding:10px;
+            width:220px;
+            background-color:red;
+            color:white;
+            margin:10px;
+            cursor:grab;
+        }
+
+        .dropZone {
+            min-height:400px;
+            width:500px;
+            border:2px solid black;
+            margin:10px;
+            padding:10px;
+        }
+
+        .dropZone.over {
+            background-color:lightgreen;
+        }
+
+        .formElement {
+            margin-bottom:15px;
+            padding:15px;
+            border:1px solid #ccc;
+            background-color:#f9f9f9;
+            position:relative;
+        }
+
+        .deleteBtn {
+            position:absolute;
+            right:10px;
+            top:10px;
+            background:red;
+            color:white;
+            border:none;
+            padding:5px 8px;
+            cursor:pointer;
+        }
+
+        dialog {
+            border:none;
+            border-radius:10px;
+            padding:20px;
+            width:380px;
+        }
+
+        .modalBox input {
+            width:100%;
+            padding:8px;
+            margin-top:8px;
+            margin-bottom:15px;
+            box-sizing:border-box;
+        }
+
+        .modalBox select {
+            width:100%;
+            padding:8px;
+            margin-top:8px;
+            margin-bottom:15px;
+            box-sizing:border-box;
+        }
+
+        .modalBox textarea {
+            width:100%;
+            padding:8px;
+            margin-top:8px;
+            margin-bottom:15px;
+            box-sizing:border-box;
+        }
+
+        .modalBox button {
+            padding:8px 12px;
+            margin-right:10px;
+            cursor:pointer;
+        }
+
+        .hidden {
+            display:none;
+        }
+
+        #styleOptions {
+            border:1px solid #ccc;
+            padding:10px;
+            margin-bottom:15px;
+            border-radius:8px;
+            background:#f8f8f8;
+        }
+    </style>
+</head>
+
+<body>
+
+   <div style="display:flex;gap:20px;align-items:flex-start;">
+
+    <div>
+        <div class="dragItem" draggable="true" id="drag1">Input</div>
+        <div class="dragItem" draggable="true" id="drag4">Checkbox</div>
+        <div class="dragItem" draggable="true" id="drag5">Select</div>
+        <div class="dragItem" draggable="true" id="drag6">Radio</div>
+    </div>
+
+    <div class="dropZone" id="dropId">
+         <input type="text" id="formName" placeholder="enter form name">
+    <button onclick="handleSave()">save</button>
+    </div>
+     
+
+</div>
+
+    
+    <button onclick="clearStorage()">Clear Storage</button>
+
+    <dialog id="myModal">
+        <div class="modalBox">
+            <h3>Add Field</h3>
+
+            <label>Label</label>
+            <input type="text" id="labelInput" placeholder="Enter label">
+
+            <div id="inputTypeSection" class="hidden">
+                <label>Input Type</label>
+                <select id="inputTypeSelect">
+                    <option value="text">Text</option>
+                    <option value="email">Email</option>
+                    <option value="password">Password</option>
+                </select>
+            </div>
+
+            <div id="placeholderSection" class="hidden">
+                <label>Placeholder</label>
+                <input type="text" id="placeholderInput" placeholder="Enter placeholder">
+            </div>
+
+            <div id="optionSection" class="hidden">
+                <label>Enter Options:</label>
+                <input type="text" placeholder="enter options" id="optionInput">
+                <button onclick="addOption()">+</button>
+            </div>
+
+            <div id="optionList"></div>
+
+            <label>
+                <input type="checkbox" id="hideOnlyInput">
+                Hide Only
+            </label>
+            <br><br>
+
+            <label>
+                <input type="checkbox" id="readOnlyInput">
+                Read Only
+            </label>
+            <br><br>
+
+            <label>
+                <input type="checkbox" id="requiredInput">
+                Required (must fill)
+            </label>
+            <br><br>
+
+            <button type="button" onclick="toggleStyleOptions()">Style</button>
+
+            <div id="styleOptions" class="hidden">
+                <label>Label Text Color</label>
+                <input type="color" id="labelColorInput" value="#000000">
+
+                <label>Background Color</label>
+                <input type="color" id="bgColorInput" value="#ffffff">
+
+                <label>Font Family</label>
+                <select id="fontFamilyInput">
+                    <option value="Arial">Arial</option>
+                    <option value="Verdana">Verdana</option>
+                    <option value="Tahoma">Tahoma</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Courier New">Courier New</option>
+                    <option value="Georgia">Georgia</option>
+                </select>
+
+                <label>Font Weight</label>
+                <select id="fontWeightInput">
+                    <option value="normal">Normal</option>
+                    <option value="bold">Bold</option>
+                </select>
+
+                <label>Font Style</label>
+                <select id="fontStyleInput">
+                    <option value="normal">Normal</option>
+                    <option value="italic">Italic</option>
+                </select>
+            </div>
+
+            <button onclick="saveModalData()">Save</button>
+            <button onclick="closeModal()">Cancel</button>
+        </div>
+    </dialog>
+
+    <script>
+        let arr=[];
+
+        let params=new URLSearchParams(window.location.search);
+        let editId=params.get("editId");
+
+        if(editId){
+            let formList=JSON.parse(localStorage.getItem("formList"))||[];
+
+            let found=formList.find(item=>item.Id==editId);
+
+            if(found){
+                arr=found.Components;
+                document.getElementById("formName").value=found.Name;
+            }
+            localStorage.setItem("currentEditId",editId);
+        }else{
+            arr=JSON.parse(localStorage.getItem("key"))||[];
+        }
+
+        const drop=document.getElementById("dropId");
+        const modal=document.getElementById("myModal");
+        const labelInput=document.getElementById("labelInput");
+        const optionInput=document.getElementById("optionInput");
+        const optionList=document.getElementById("optionList");
+        const optionSection=document.getElementById("optionSection");
+        const styleOptions=document.getElementById("styleOptions");
+        const inputTypeSection=document.getElementById("inputTypeSection");
+        const placeholderSection=document.getElementById("placeholderSection");
+        const inputTypeSelect=document.getElementById("inputTypeSelect");
+        const labelColorInput=document.getElementById("labelColorInput");
+        const bgColorInput=document.getElementById("bgColorInput");
+        const fontFamilyInput=document.getElementById("fontFamilyInput");
+        const placeholderInput=document.getElementById("placeholderInput");
+        const fontWeightInput=document.getElementById("fontWeightInput");
+        const fontStyleInput=document.getElementById("fontStyleInput");
+        const hideOnlyInput=document.getElementById("hideOnlyInput");
+        const readOnlyInput=document.getElementById("readOnlyInput");
+        const requiredInput=document.getElementById("requiredInput");
+
+        let pendingType="";
+        let tempOptions=[];
+        let editIndex=null;
+
+        renderBuilder();
+
+        document.addEventListener("dragstart",(e)=>{
+            e.dataTransfer.setData("text/plain",e.target.id);
+        });
+
+        drop.addEventListener("dragover",(e)=>{
+            e.preventDefault();
+            drop.classList.add("over");
+        });
+
+        drop.addEventListener("dragleave",()=>{
+            drop.classList.remove("over");
+        });
+
+        drop.addEventListener("drop",(e)=>{
+            e.preventDefault();
+            drop.classList.remove("over");
+            let id=e.dataTransfer.getData("text/plain");
+            addFormElement(id);
+        });
+
+        function addOption(){
+            let val=optionInput.value.trim().replace(/</g,"&lt;");
+            if(val===""){
+                alert("enter atleast one option");
+                return;
+            }
+            for(let i=0;i<tempOptions.length;i++){
+                if(val===tempOptions[i]){
+                    alert("Dont add duplicate options");
+                    return;
+                }
+            }
+            tempOptions.push(val);
+            optionInput.value="";
+            renderOptionList();
+        }
+
+        function renderOptionList(){
+            optionList.innerHTML="";
+            for(let i=0;i<tempOptions.length;i++){
+                const div=document.createElement("div");
+                div.style.marginBottom="8px";
+                div.style.padding="8px";
+                div.style.border="1px solid #ccc";
+                div.style.display="flex";
+                div.style.justifyContent="space-between";
+                div.style.alignItems="center";
+
+                div.innerHTML=`
+                    <span>${tempOptions[i]}</span>
+                    <button type="button" onclick="removeOption(${i})">X</button>`;
+                optionList.appendChild(div);
+            }
+        }
+
+        function removeOption(id){
+            tempOptions.splice(id,1);
+            renderOptionList();
+        }
+
+        function addFormElement(id){
+            let type="";
+
+            switch(id){
+                case"drag1":type="text";break;
+                case"drag4":type="checkbox";break;
+                case"drag5":type="select";break;
+                case"drag6":type="radio";break;
+            }
+
+            const obj={
+                id:"Element"+Date.now(),
+                type:type,
+                properties:{
+                    label:"New Field",
+                    options:type==="checkbox"||type==="radio"||type==="select"?["Option 1"]:[],
+                    placeholder:"Enter value",
+                    minValue:"",
+                    maxValue:"",
+                    isRequired:false,
+                    isReadOnly:false,
+                    isHide:false,
+                    styles:{
+                        labelColor:"#000000",
+                        bgColor:"#ffffff",
+                        fontFamily:"Arial",
+                        fontWeight:"normal",
+                        fontStyle:"normal"
+                    }
+                }
+            };
+
+            arr.push(obj);
+            localStorage.setItem("key",JSON.stringify(arr));
+            renderBuilder();
+        }
+
+        function toggleStyleOptions(){
+            styleOptions.classList.toggle("hidden");
+        }
+
+        function saveModalData(){
+            const label=labelInput.value.trim();
+
+            if(label===""){
+                alert("Please enter label");
+                return;
+            }
+
+            let options=[];
+            if(pendingType==="checkbox"||pendingType==="radio"||pendingType==="select"){
+                if(tempOptions.length===0){
+                    alert("enter atleast one option");
+                    return;
+                }
+            }
+            options=[...tempOptions];
+
+            const obj={
+                id:"Element"+Date.now(),
+                type:pendingType==="input"?inputTypeSelect.value:pendingType,
+                properties:{
+                    label:label,
+                    options:options,
+                    placeholder:placeholderInput.value.trim(),
+                    minValue:"",
+                    maxValue:"",
+                    isRequired:requiredInput.checked,
+                    isReadOnly:readOnlyInput.checked,
+                    isHide:hideOnlyInput.checked,
+                    styles:{
+                        labelColor:labelColorInput.value,
+                        bgColor:bgColorInput.value,
+                        fontFamily:fontFamilyInput.value,
+                        fontWeight:fontWeightInput.value,
+                        fontStyle:fontStyleInput.value
+                    }
+                }
+            };
+
+            if(editIndex!==null){
+                obj.id=arr[editIndex].id;
+                arr[editIndex]=obj;
+                editIndex=null;
+            }else{
+                arr.push(obj);
+            }
+
+            localStorage.setItem("key",JSON.stringify(arr));
+            modal.close();
+            renderBuilder();
+        }
+
+        function closeModal(){
+            modal.close();
+        }
+
+        function getInputHTML(elem){
+            const labelSafe=String(elem.properties.label).replace(/</g,"&lt;");
+            const placeholderSafe=String(elem.properties.placeholder||elem.properties.label).replace(/</g,"&lt;");
+            const readOnlyAttr=elem.properties.isReadOnly?"readonly":"";
+            const disabledAttr=elem.properties.isReadOnly?"disabled":"";
+            const requiredAttr=elem.properties.isRequired?"required":"";
+
+            const wrapperStyle=`
+        background-color:${elem.properties.styles.bgColor||"#fff"};
+        padding:10px;
+        font-family:${elem.properties.styles.fontFamily||"Arial"};
+        font-weight:${elem.properties.styles.fontWeight||"normal"};
+        font-style:${elem.properties.styles.fontStyle||"normal"};
+        border-radius:6px;
+    `;
+
+            const labelStyle=`color:${elem.properties.styles.labelColor||"#000"};`;
+
+            switch(elem.type){
+                case"text":
+                    return`
+                <div style="${wrapperStyle}">
+                    <label style="${labelStyle}">${labelSafe}</label><br>
+                    <input type="text" placeholder="${placeholderSafe}" maxlength="100" ${readOnlyAttr} ${requiredAttr}>
+                </div>
+            `;
+                case"email":
+                    return`
+                <div style="${wrapperStyle}">
+                    <label style="${labelStyle}">${labelSafe}</label><br>
+                    <input type="email" placeholder="${placeholderSafe}" ${readOnlyAttr} ${requiredAttr}>
+                </div>
+            `;
+                case"password":
+                    return`
+                <div style="${wrapperStyle}">
+                    <label style="${labelStyle}">${labelSafe}</label><br>
+                    <input type="password" placeholder="${placeholderSafe}" ${readOnlyAttr} ${requiredAttr}>
+                </div>
+            `;
+                case"checkbox":
+                    let checkboxHTML=`
+                <div style="${wrapperStyle}">
+                    <label style="${labelStyle}">${labelSafe}</label><br>
+            `;
+                    for(let i=0;i<elem.properties.options.length;i++){
+                        checkboxHTML+=`
+                    <label style="${labelStyle}">
+                        <input type="checkbox" ${disabledAttr} ${requiredAttr}> ${String(elem.properties.options[i]).replace(/</g,"&lt;")}
+                    </label><br>
+                `;
+                    }
+                    checkboxHTML+=`</div>`;
+                    return checkboxHTML;
+
+                case"radio":
+                    let radioHTML=`
+                <div style="${wrapperStyle}">
+                    <label style="${labelStyle}">${labelSafe}</label><br>
+            `;
+                    for(let i=0;i<elem.properties.options.length;i++){
+                        radioHTML+=`
+                    <label style="${labelStyle}">
+                        <input type="radio" name="radio${elem.id}" ${disabledAttr} ${requiredAttr}> ${String(elem.properties.options[i]).replace(/</g,"&lt;")}
+                    </label><br>
+                `;
+                    }
+                    radioHTML+=`</div>`;
+                    return radioHTML;
+
+                case"select":
+                    let selectHTML=`
+                <div style="${wrapperStyle}">
+                    <label style="${labelStyle}">${labelSafe}</label><br>
+                    <select ${disabledAttr} ${requiredAttr}>
+                        <option disabled selected>${placeholderSafe}</option>
+            `;
+                    for(let i=0;i<elem.properties.options.length;i++){
+                        selectHTML+=`
+                    <option>${String(elem.properties.options[i]).replace(/</g,"&lt;")}</option>
+                `;
+                    }
+                    selectHTML+=`</select></div>`;
+                    return selectHTML;
+
+                default:
+                    return`<input type="text">`;
+            }
+        }
+
+        function renderBuilder(){
+            drop.innerHTML=`drop here<br><br>
+             <input type="text" id="formName" placeholder="enter form name">
+    <button onclick="handleSave()">save</button>`;
+
+            arr.forEach((item,index)=>{
+                const div=document.createElement("div");
+                div.className="formElement";
+
+                div.innerHTML=getInputHTML(item);
+
+                const editBtn=document.createElement("button");
+                editBtn.innerText="Edit";
+                editBtn.style.position="absolute";
+                editBtn.style.right="50px";
+                editBtn.style.top="10px";
+
+                editBtn.onclick=()=>{
+                    openEditModal(item,index)
+                };
+
+                div.appendChild(editBtn);
+
+                const dltBtn=document.createElement("button");
+                dltBtn.innerText="X";
+                dltBtn.className="deleteBtn";
+
+                dltBtn.onclick=()=>{
+                    arr.splice(index,1);
+                    localStorage.setItem("key",JSON.stringify(arr));
+                    renderBuilder();
+                };
+
+                div.appendChild(dltBtn);
+                drop.appendChild(div);
+            });
+        }
+
+        function openEditModal(item,index){
+            editIndex=index;
+            pendingType=item.type;
+
+            labelInput.value=item.properties.label;
+            placeholderInput.value=item.properties.placeholder||"";
+            tempOptions=[...item.properties.options];
+            renderOptionList();
+
+            inputTypeSelect.value=item.type;
+
+            labelColorInput.value=item.properties.styles.labelColor;
+            bgColorInput.value=item.properties.styles.bgColor;
+            fontFamilyInput.value=item.properties.styles.fontFamily;
+            fontWeightInput.value=item.properties.styles.fontWeight;
+            fontStyleInput.value=item.properties.styles.fontStyle;
+
+            hideOnlyInput.checked=item.properties.isHide;
+            readOnlyInput.checked=item.properties.isReadOnly;
+            requiredInput.checked=item.properties.isRequired;
+
+            if(item.type==="checkbox"||item.type==="radio"||item.type==="select"){
+                optionSection.classList.remove("hidden");
+            }else{
+                optionSection.classList.add("hidden");
+            }
+
+            if(item.type==="text"||item.type==="email"||item.type==="password"){
+                inputTypeSection.classList.remove("hidden");
+                placeholderSection.classList.remove("hidden");
+            }else if(item.type==="select"){
+                inputTypeSection.classList.add("hidden");
+                placeholderSection.classList.remove("hidden");
+            }else{
+                inputTypeSection.classList.add("hidden");
+                placeholderSection.classList.add("hidden");
+            }
+
+            modal.showModal();
+        }
+
+        function clearStorage(){
+            localStorage.removeItem("key");
+            localStorage.removeItem("formList");
+            arr=[];
+            renderBuilder();
+        }
+
+        function handleSave(){
+            let formList=JSON.parse(localStorage.getItem("formList"))||[];
+
+            let formName=document.getElementById("formName").value;
+
+            let editId=localStorage.getItem("currentEditId");
+
+            if(editId){
+                let index=formList.findIndex((f)=>f.Id==editId);
+
+                if(index!==-1){
+                    formList[index].Name=formName;
+                    formList[index].Components=arr;
+                    formList[index].updatedDate=new Date().toISOString();
+                }
+
+                localStorage.removeItem("currentEditId");
+            }else{
+                const obj1={
+                    Id:Date.now(),
+                    Name:formName,
+                    Components:arr,
+                    createdDate:new Date().toISOString(),
+                    updatedDate:new Date().toISOString(),
+                    isDeleted:false
+                };
+                formList.push(obj1);
+            }
+
+            localStorage.setItem("formList",JSON.stringify(formList));
+            localStorage.removeItem("key");
+            window.location.href="formlist.html";
+        }
+    </script>
+
+</body>
+</html>
