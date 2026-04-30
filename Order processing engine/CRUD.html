@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Order Processing Engine</title>
+</head>
+<body>
+
+    <h1 id="heading">Order Processing Engine</h1>
+
+    <input type="hidden" id="editid">
+
+    <label>Enter item name:</label>
+    <input type="text" id="item-name" placeholder="Enter item name">
+    <br><br>
+
+    <label>Enter price:</label>
+    <input type="number" id="item-price" placeholder="Enter price">
+    <br><br>
+
+    <label>Enter quantity:</label>
+    <input type="number" id="quantity" placeholder="Enter quantity">
+    <br><br>
+
+    <button onclick="handlesubmit()">Submit</button>
+    <br><br><br>
+
+    <table border="1" cellpadding="10">
+        <thead>
+            <tr>
+                <th>ID <button onclick="handlesort('id')">↕</button></th>
+                <th>Name</th>
+                <th>Price <button onclick="handlesort('price')">↕</button></th>
+                <th>Quantity <button onclick="handlesort('quantity')">↕</button></th>
+                <th>Created Time <button onclick="handlesort('created')">↕</button></th>
+                <th>Updated Time <button onclick="handlesort('updated')">↕</button></th>
+                <th>Edit</th>
+                <th>Delete</th>
+            </tr>
+        </thead>
+        <tbody id="list"></tbody>
+    </table>
+
+    <h2>Grand Total amount:</h2>
+    <h2 id="ta">0</h2>
+
+    <h2>Discount:</h2>
+    <h2 id="d">0</h2>
+
+    <h2>Total amount:</h2>
+    <h2 id="a">0</h2>
+    <br><br>
+
+    <button onclick="clearstorage()">Clear Storage</button>
+
+    <script>
+        let arr = JSON.parse(localStorage.getItem("orderdetail")) || [];
+        let sortType = "";
+        let sortOrder = "asc";
+
+        function handlesubmit() {
+            const itemname = document.getElementById("item-name").value.trim();
+            const itemprice = Number(document.getElementById("item-price").value);
+            const quantity = Number(document.getElementById("quantity").value);
+            const eid = document.getElementById("editid").value;
+
+            
+            document.getElementById("item-name").style.border = "";
+            document.getElementById("item-price").style.border = "";
+            document.getElementById("quantity").style.border = "";
+
+            
+            let olderror = document.getElementById("errorMsg");
+            if (olderror) {
+                olderror.remove();
+            }
+
+            
+            if (itemname === "") {
+                document.getElementById("item-name").style.border = "1px solid red";
+
+                let errorMsg = document.createElement("p");
+                errorMsg.innerText = "Enter valid name";
+                errorMsg.id = "errorMsg";
+                errorMsg.style.color = "red";
+                document.getElementById("item-name").after(errorMsg);
+                return;
+            }
+
+            if (itemprice <= 0 ) {
+                document.getElementById("item-price").style.border = "1px solid red";
+
+                let errorMsg = document.createElement("p");
+                errorMsg.innerText = "Enter valid price";
+                errorMsg.id = "errorMsg";
+                errorMsg.style.color = "red";
+                document.getElementById("item-price").after(errorMsg);
+                return;
+            }
+
+            if (quantity <= 0 ) {
+                document.getElementById("quantity").style.border = "1px solid red";
+
+                let errorMsg = document.createElement("p");
+                errorMsg.innerText = "Enter at least one quantity";
+                errorMsg.id = "errorMsg";
+                errorMsg.style.color = "red";
+                document.getElementById("quantity").after(errorMsg);
+                return;
+            }
+
+            
+            if (Number(eid) > 0) {
+                let index = arr.findIndex(function(obj) {
+                    return obj.Id == eid;
+                });
+
+                if (index !== -1) {
+                    arr[index].ItemName = itemname;
+                    arr[index].Price = itemprice;
+                    arr[index].Quantity = quantity;
+                    arr[index].UpdatedDate = new Date().toISOString();
+
+                    const obj1 = {
+                        Id: arr[index].Id,
+                        ItemName: itemname,
+                        Price: itemprice,
+                        Quantity: quantity,
+                        CreatedDate:new Date(arr[index].CreatedDate) ,
+                        UpdatedDate: new Date(),
+                        IsDeleted: false
+                    };
+
+                    
+                        apiEditOrder( obj1,index);
+                    
+                }
+
+                document.getElementById("editid").value = "";
+            }
+            
+            else {
+                let thisid = 1;
+
+                if (arr.length > 0) {
+                   thisid=Number(arr[arr.length-1].Id)+1;
+                   
+                }
+
+                const obj = {
+                    Id: thisid,
+                    ItemName: itemname,
+                    Price: itemprice,
+                    Quantity: quantity,
+                    CreatedDate: new Date(),
+                    UpdatedDate: new Date(),
+                    IsDeleted: false,
+                    
+                };
+
+                arr.push(obj);
+                apiPlaceOrder(obj);
+            }
+
+            document.getElementById("item-name").value = "";
+            document.getElementById("item-price").value = "";
+            document.getElementById("quantity").value = "";
+
+            store();
+            display();
+        }
+
+        function handlesort(type) {
+            if (sortType === type) {
+                if(sortOrder =="asc")
+                sortOrder="dsc";
+                else
+                SortOrder="asc"
+            } else {
+                sortType = type;
+                sortOrder = "asc";
+            }
+
+            display();
+        }
+
+        function edititem(id) {
+            let obj = arr.find(function(item) {
+                return item.Id == id;
+            });
+
+            if (!obj) return;
+
+            document.getElementById("item-name").value = obj.ItemName;
+            document.getElementById("item-price").value = obj.Price;
+            document.getElementById("quantity").value = obj.Quantity;
+            document.getElementById("editid").value = id;
+        }
+
+        function display() {
+            const list = document.getElementById("list");
+            list.innerHTML = "";
+
+            let tempArr = [...arr];
+
+            if (sortType === "id") {
+                tempArr.sort((a, b) => sortOrder === "asc" ? a.Id - b.Id : b.Id - a.Id);
+            }
+            else if (sortType === "price") {
+                tempArr.sort((a, b) => sortOrder === "asc" ? a.Price - b.Price : b.Price - a.Price);
+            }
+            else if (sortType === "quantity") {
+                tempArr.sort((a, b) => sortOrder === "asc" ? a.Quantity - b.Quantity : b.Quantity - a.Quantity);
+            }
+            else if (sortType === "created") {
+                tempArr.sort((a, b) =>
+                    sortOrder === "asc"
+                        ? new Date(a.CreatedDate) - new Date(b.CreatedDate)
+                        : new Date(b.CreatedDate) - new Date(a.CreatedDate)
+                );
+            }
+            else if (sortType === "updated") {
+                tempArr.sort((a, b) =>
+                    sortOrder === "asc"
+                        ? new Date(a.UpdatedDate) - new Date(b.UpdatedDate)
+                        : new Date(b.UpdatedDate) - new Date(a.UpdatedDate)
+                );
+            }
+
+            for (let i = 0; i < tempArr.length; i++) {
+                if (!tempArr[i].IsDeleted) {
+                    list.innerHTML += `
+                        <tr>
+                            <td>${tempArr[i].Id}</td>
+                            <td>${tempArr[i].ItemName}</td>
+                            <td>${tempArr[i].Price}</td>
+                            <td>${tempArr[i].Quantity}</td>
+                            <td>${new Date(tempArr[i].CreatedDate).toLocaleString()}</td>
+                            <td>${new Date(tempArr[i].UpdatedDate).toLocaleString()}</td>
+                            <td><button onclick="edititem(${tempArr[i].Id})">Edit</button></td>
+                            <td><button onclick="deleteitem(${tempArr[i].Id})">Delete</button></td>
+                        </tr>
+                    `;
+                }
+            }
+
+            calculate();
+        }
+
+        function calculate() {
+            let total = 0;
+
+            for (let i = 0; i < arr.length; i++) {
+                if (!arr[i].IsDeleted) {
+                    total += arr[i].Price * arr[i].Quantity;
+                }
+            }
+
+            let dis = 0;
+            if (total > 300) {
+                dis = total * 0.10;
+            }
+
+            let tt = total - dis;
+
+            document.getElementById("ta").innerText = total;
+            document.getElementById("d").innerText = dis;
+            document.getElementById("a").innerText = tt;
+
+            sessionStorage.setItem("grandtotal", JSON.stringify(total));
+            sessionStorage.setItem("discount", JSON.stringify(dis));
+            sessionStorage.setItem("totalamount", JSON.stringify(tt));
+        }
+
+        function deleteitem(delid) {
+            let objIndex= arr.findIndex(function(item) {
+                return item.Id == delid;
+            });
+
+            if (objIndex!=-1) {
+                arr[objIndex].IsDeleted = true;
+                arr[objIndex].UpdatedDate = new Date();
+
+               
+                    // deleteApi(delid);
+                   
+                    
+                
+                softDelete(delid,arr[objIndex]);
+                
+            }
+
+            store();
+            display();
+        }
+
+        function store() {
+            localStorage.setItem("orderdetail", JSON.stringify(arr));
+        }
+
+        function clearstorage() {
+            localStorage.clear();
+            sessionStorage.clear();
+            arr.length = 0;
+            display();
+        }
+
+        display();
+    </script>
+
+    <script src="Api.js"></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+   <html lang="en">
+  <head>
+  <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width,initial-scale=1.0">
+   <title>Submissions</title>
+   <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+   <body class="bg-gray-100 p-6">
+
+   <div class="max-w-5xl mx-auto bg-white p-6 rounded shadow">
+   <h2 class="text-2xl font-bold mb-4">Submission List</h2>
+
+   <table class="w-full border-collapse border">
+  <thead>
+      <tr class="bg-gray-200">
+       <th class="border p-2">Submission Id</th>
+       <th class="border p-2">Created</th>
+       <th class="border p-2">Field</th>
+         <th class="border p-2">Value</th>
+        </tr>
+  </thead>
+
+<tbody id="tableBody"></tbody>
+   </table>
+
+    <a href="formlist.html" class="mt-4 inline-block bg-blue-500 text-white px-3 py-1 rounded">Back</a>
+</div>
+
+<script>
+
+let params=new URLSearchParams(window.location.search);
+let viewId=params.get("viewId");
+
+let submissions=JSON.parse(localStorage.getItem("submissions"))||[];
+
+let tableBody=document.getElementById("tableBody");
+
+for(let i=0;i<submissions.length;i++){
+     if(submissions[i].formId==viewId){
+       let allData=submissions[i].submission;
+      for(let j=0;j<allData.length;j++){
+
+       let one=allData[j];
+       for(let k=0;k<one.submisionValues.length;k++){
+
+         let row=one.submisionValues[k];
+
+          tableBody.innerHTML+=`<tr>
+         <td class="border p-2">${one.id}</td>
+         <td class="border p-2">${new Date(one.createdAt)}</td>
+          <td class="border p-2">${row.componentId}</td>
+          <td class="border p-2">${row.value}</td>
+          </tr>
+          `;
+
+        }
+
+}
+
+}
+
+}
+
+</script>
+
+</body>
+</html>
